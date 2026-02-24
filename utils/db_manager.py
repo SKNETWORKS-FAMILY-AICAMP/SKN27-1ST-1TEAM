@@ -30,5 +30,16 @@ class DBManager:
         engine = self.get_engine()
         return pd.read_sql(query, engine)
 
+    def execute_query(self, query, params=None):
+        """명령어(INSERT, UPDATE 등) 실행"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(query, params)
+            conn.commit()
+        finally:
+            cursor.close()
+            conn.close()
+
 # 싱글톤 패턴으로 인스턴스 제공
 db_manager = DBManager()
