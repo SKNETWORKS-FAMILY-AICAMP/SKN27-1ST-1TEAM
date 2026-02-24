@@ -9,144 +9,158 @@ st.set_page_config(page_title="🌱 전국 친환경차 현황 대시보드", la
 
 @st.cache_data
 def load_data():
-    """데이터 로드 및 전처리 함수"""
-    # GeoJSON 로드 (대한민국 시/도 경계 단순화 버전) [1, 2]
+    """파일 데이터 로드 및 전처리"""
+    # GeoJSON (지도용)
     geojson_url = "https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_provinces_geo_simple.json"
     geojson = requests.get(geojson_url).json()
 
-    # csv 로드
-    df_master = pd.read_csv("master_2026.csv", encoding="utf-8-sig")
-    df_trend = pd.read_csv("eco_trend.csv", encoding="utf-8-sig")
+    # CSV 로드
+    df_master = pd.read_csv("master.csv", encoding="utf-8-sig")
+    df_trend = pd.read_csv("지역별_연료별_등록대수_최종.csv", encoding="utf-8-sig")
 
-    #친환경차 합계
-    df_master['친환경차_합계'] = df_master['하이브리드'] + df_master['전기'] + df_master['수소']
-    
+    # 데이터 타입 정제
+    df_master['연도'] = df_master['연도'].astype(int)
+    df_trend['연도'] = df_trend['연도'].astype(float).astype(int)
 
-    #전국 누적등록 행 생성
-    numeric_cols = df_master.select_dtypes(include=['number']).columns
-    total_row = df_master[numeric_cols].sum().to_frame().T
-    total_row['지역'] = '전국'
-
-    # 친환경차 데이터만 추출
-    eco_only = df_trend[df_trend['차종'] == '친환경차'].groupby('연도')['대수'].sum()
-    current_eco = eco_only.get(2026, 0)
-    prev_eco = eco_only.get(2025, 1) # 분모 0 방지
-    calc_growth_rate = ((current_eco - prev_eco) / prev_eco) * 100
-
-    # 💡 강원도 명칭 불일치 해결 (데이터: 강원특별자치도 -> GeoJSON: 강원도) [2]
+    # 이름 매핑 (데이터셋 '서울' -> 지도 '서울특별시')
     name_map = {
-        '강원특별자치도': '강원도',
-        #'제주특별자치도': '제주도',
-        '전라북도': '전라북도', 
-        '경상북도': '경상북도',
-        '경상남도': '경상남도'
+        '서울': '서울특별시', '부산': '부산광역시', '대구': '대구광역시',
+        '인천': '인천광역시', '광주': '광주광역시', '대전': '대전광역시',
+        '울산': '울산광역시', '세종': '세종특별자치시', '경기': '경기도',
+        '강원': '강원도', '충북': '충청북도', '충남': '충청남도',
+        '전북': '전라북도', '전남': '전라남도', '경북': '경상북도',
+        '경남': '경상남도', '제주': '제주특별자치도'
     }
     df_master['지역'] = df_master['지역'].replace(name_map)
     df_trend['지역'] = df_trend['지역'].replace(name_map)
-    # 지표 계산: 친환경차 합계 및 보급률 [4, 6]
-    df_master['친환경차_합계'] = df_master['전기'] + df_master['수소']
-    df_master['보급률'] = (df_master['친환경차_합계'] / df_master['전체합계']) * 100
+
+    # 💡 [핵심 수정] 전기차 vs 비전기차 계산
+    # master.csv의 컬럼명을 기준으로 계산합니다.
+    df_master['비전기차 등록수'] = df_master['총 자동차 등록수'] - df_master['전기차 등록수']
+    df_master['보급률'] = (df_master['전기차 등록수'] / df_master['총 자동차 등록수']) * 100
+    
+    # 증감율 계산 (2026 vs 2025)
+    df_2026 = df_master[df_master['연도'] == 2026].set_index('지역')['전기차 등록수']
+    df_2025 = df_master[df_master['연도'] == 2025].set_index('지역')['전기차 등록수']
+    calc_growth_rate = ((df_2026 - df_2025) / df_2025) * 100
     
     return geojson, df_master, df_trend, calc_growth_rate
 
-# 데이터 실행
+# 데이터 로딩
 try:
     geojson, df_master, df_trend, calc_growth_rate = load_data()
 except Exception as e:
-    st.error(f"데이터 로드 중 오류가 발생했습니다: {e}")
+    st.error(f"데이터를 불러오는 중 오류가 발생했습니다: {e}")
     st.stop()
 
-# --- 2. 상태 관리 (Session State) [2, 5, 7] ---
+# --- 2. 상태 관리 ---
 if "selected_region" not in st.session_state:
     st.session_state.selected_region = "서울특별시"
 
-def sync_region():
-    if "region_selectbox" in st.session_state:
-        st.session_state.selected_region = st.session_state.region_selectbox
-
 # --- 3. UI 레이아웃 ---
-st.title("🌱 전국 친환경차 현황 대시보드")
+st.title("🌱 전국 친환경차 현황 대시보드 (2026)")
 st.markdown("---")
 
-# 1단
+# 1단: KPI 메트릭
 k1, k2, k3 = st.columns(3)
-total_eco = df_master['친환경차_합계'].sum()
-avg_ratio = (total_eco / df_master['전체합계'].sum()) * 100
-
-target_year = 2026
-all_regions = ['전국'] + df_master['지역'].unique().tolist()\
-
+latest_df = df_master[df_master['연도'] == 2026]
+total_ev = latest_df['전기차 등록수'].sum()
+avg_ratio = (total_ev / latest_df['총 자동차 등록수'].sum()) * 100
+avg_growth = calc_growth_rate.mean()
 
 with k1:
-    st.metric("전국 친환경차 누적 등록", f"{total_eco:,.0f} 대", delta="2026년 기준")
+    st.metric("전국 전기차 누적 등록 (2026)", f"{total_ev:,.0f} 대")
 with k2:
-    st.metric("전년 대비 증감율", f"{calc_growth_rate:.1f}%", delta="수정해야함")
+    st.metric("전국 평균 증감율 (25년 대비)", f"{avg_growth:.1f}%")
 with k3:
-    st.metric("전체 차량 중 친환경차 비율", f"{avg_ratio:.2f}%", delta="수정해야함")
+    st.metric("전체 차량 중 전기차 비율", f"{avg_ratio:.2f}%")
 
-st.markdown("---", unsafe_allow_html=True)
-# 2단: 지도 및 추이 차트
+st.markdown("---")
+
+# 2단: 지도 및 연도별 추이 (전기 vs 비전기)
 map_col, trend_col = st.columns([6, 4])
 
 with map_col:
-    st.markdown("### 🗺️ 지역별 보급률 지도")
-    
-    # --- 1. 지도를 먼저 배치 (클릭 이벤트 우선순위 확보) ---
+    st.markdown("### 🗺️ 지역별 보급률 지도 (%)")
     fig_map = px.choropleth_mapbox(
-        df_master, geojson=geojson, locations='지역', featureidkey="properties.name",
-        color='보급률', color_continuous_scale="Greens", mapbox_style="carto-positron",
-        zoom=5.5, center={"lat": 36.3, "lon": 127.7}, opacity=0.8,
-        hover_data={'보급률': ':.2f', '친환경차_합계': ':,.0f'}
+        latest_df, geojson=geojson, locations='지역', featureidkey="properties.name",
+        color='보급률', color_continuous_scale="YlGn", mapbox_style="carto-positron",
+        zoom=5.5, center={"lat": 35.9, "lon": 127.7}, opacity=0.7,
+        hover_data={'보급률': ':.2f', '전기차 등록수': ':,.0f'}
     )
     fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
     
-    # on_select="rerun" 설정
     map_event = st.plotly_chart(fig_map, use_container_width=True, on_select="rerun", selection_mode="points")
     
-    # --- 2. 지도 클릭 시 세션 업데이트 (가장 먼저 실행됨) ---
     if map_event and "selection" in map_event:
         points = map_event["selection"].get("points", [])
         if points:
             clicked_region = points[0].get("location")
-            # 데이터 명칭 불일치 방지를 위해 클릭 값이 실제 데이터에 있는지 확인 후 업데이트
-            if clicked_region and clicked_region in df_master['지역'].values:
-                if clicked_region != st.session_state.selected_region:
-                    st.session_state.selected_region = clicked_region
-                    st.rerun()
+            if clicked_region in df_master['지역'].values:
+                st.session_state.selected_region = clicked_region
+                st.rerun()
 
 with trend_col:
-    st.markdown(f"### 📈 {st.session_state.selected_region} 성장 추이")
-    regional_trend = df_trend[df_trend['지역'] == st.session_state.selected_region]
+    # 💡 [핵심 수정] 꺾은선 그래프: 전기차 vs 비전기차
+    st.markdown(f"### 📈 {st.session_state.selected_region} 연도별 등록 추이")
+    reg_master_trend = df_master[df_master['지역'] == st.session_state.selected_region].sort_values('연도')
     
-    if not regional_trend.empty:
-        fig_trend = px.line(regional_trend, x='연도', y='대수', color='차종', markers=True,
-                            color_discrete_map={'친환경차': '#2ca02c', '내연기관차': '#7f7f7f'})
-        fig_trend.update_layout(xaxis_type='category', legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+    if not reg_master_trend.empty:
+        fig_trend = go.Figure()
+        
+        # 비전기차 라인 (파란색 계열)
+        fig_trend.add_trace(go.Scatter(
+            x=reg_master_trend['연도'], y=reg_master_trend['비전기차 등록수'],
+            name="비전기차", line=dict(color='#3498DB', width=3), mode='lines+markers'
+        ))
+        
+        # 전기차 라인 (핑크색 계열)
+        fig_trend.add_trace(go.Scatter(
+            x=reg_master_trend['연도'], y=reg_master_trend['전기차 등록수'],
+            name="전기차", line=dict(color='#E74C3C', width=4), mode='lines+markers'
+        ))
+        
+        fig_trend.update_layout(
+            xaxis=dict(type='category'),
+            hovermode="x unified",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            margin=dict(l=0, r=0, t=30, b=0),
+            height=400
+        )
         st.plotly_chart(fig_trend, use_container_width=True)
 
 st.markdown("---")
 
-#3단
+# 3단: 상세 분석 (도넛 차트는 연료별 유지)
 st.markdown(f"### 🔍 {st.session_state.selected_region} 상세 분석")
 
-detail_row = df_master[df_master['지역'] == st.session_state.selected_region]
+col_left, col_right = st.columns(2)
 
-if not detail_row.empty:
-    res = detail_row.iloc[0] # TypeError 방지를 위한 명확한 인덱싱 [17]
-    
-    d1, d2 = st.columns(2)
-    with d1:
-        st.markdown("**연료별 등록 비중**")
-        labels = ['휘발유', '경유', '엘피지', '하이브리드', '전기', '수소']
-        values = [res['휘발유'], res['경유'], res['엘피지'], res['하이브리드'], res['전기'], res['수소']]
-        fig_donut = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.5)])
-        fig_donut.update_layout(margin={"r":20,"t":20,"l":20,"b":20}, height=300)
+# 해당 지역의 2026년 상세 데이터
+region_master_2026 = latest_df[latest_df['지역'] == st.session_state.selected_region].iloc[0]
+region_trend_2026 = df_trend[(df_trend['지역'] == st.session_state.selected_region) & (df_trend['연도'] == 2026)]
+
+with col_left:
+    # 💡 도넛 차트는 기존처럼 연료별(휘발유, 경유, 수소 등)로 표시
+    st.markdown("**연료별 등록 비중 (2026)**")
+    if not region_trend_2026.empty:
+        fig_donut = px.pie(region_trend_2026, values='대수', names='연료', hole=.4,
+                        color_discrete_sequence=px.colors.qualitative.Safe)
+        fig_donut.update_layout(margin={"r":20,"t":20,"l":20,"b":20}, height=350)
         st.plotly_chart(fig_donut, use_container_width=True)
-        
-    with d2:
-        st.markdown("**차종별 평균 보조금 (만원)**")
-        subsidy_df = pd.DataFrame({
-            "차종 구분": ["승용차", "초소형차", "화물차"],
-            "평균 지원금": [f"{res['보조금_승용']:,}", f"{res['보조금_초소형']:,}", f"{res['보조금_화물']:,}"]
-        })
-        st.table(subsidy_df)
+
+with col_right:
+    st.markdown("**차종별 최대 보조금 (2026)**")
+    subsidy_df = pd.DataFrame({
+        "차종 구분": ["승용차", "화물차"],
+        "지원금 (만원)": [
+            f"{region_master_2026['최대 보조금(승용/만원)']:,.0f}", 
+            f"{region_master_2026['최대 보조금(화물/만원)']:,.0f}"
+        ]
+    })
+    st.table(subsidy_df)
+    
+    # 충전기 수 정보 (master.csv에 N/A가 있을 수 있으므로 처리)
+    charger_val = region_master_2026['충전기 수']
+    charger_text = f"{charger_val:,.0f}대" if pd.notnull(charger_val) and charger_val != "N/A" else "정보 없음"
+    st.info(f"💡 {st.session_state.selected_region}의 2026년 충전기 수는 {charger_text} 입니다.")
