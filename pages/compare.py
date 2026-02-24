@@ -1,152 +1,212 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
+import numpy as np
 
-# 페이지 기본 설정
-st.set_page_config(page_title="유지비 비교 분석", page_icon="⚖️", layout="wide")
+# ==========================================
+# 🎨 프리미엄 UI 스타일 설정 (CSS)
+# ==========================================
+st.markdown("""
+<style>
+    .main {
+        background-color: #fcfdfe;
+    }
+    [data-testid="stMetricValue"] {
+        font-size: 1.8rem !important;
+        font-weight: 800 !important;
+        color: #0f172a;
+    }
+    .stMetric {
+        background-color: #ffffff;
+        padding: 24px;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        border: 1px solid #f1f5f9;
+    }
+    .chart-card {
+        background-color: #ffffff;
+        padding: 28px;
+        border-radius: 16px;
+        box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05);
+        border: 1px solid #f1f5f9;
+        margin-bottom: 24px;
+    }
+    .section-title {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 20px;
+        padding-left: 10px;
+        border-left: 5px solid #3b82f6;
+    }
+    .report-box {
+        background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+        padding: 24px;
+        border-radius: 12px;
+        border-left: 5px solid #2563eb;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-st.title("⚖️ 내연기관 vs 친환경차 유지비 비교")
-st.markdown("사용자의 주행 거리에 따른 **연료비** 및 **N년차 누적 유지비**를 직관적으로 비교해 드립니다.")
+st.title("⚖️ 친환경차 경제성 분석")
+st.markdown("내연기관차와 전기차의 **초기 구입비** 및 **유지비**를 정밀 비교하여 최적의 선택을 도와드립니다.")
 st.markdown("---")
 
 # ==========================================
-# 📍 1단계: 조건 설정 (Sidebar 또는 Expander 활용)
+# 📍 1단계: 조건 설정 (사이드바)
 # ==========================================
 with st.sidebar:
     st.header("⚙️ 시뮬레이션 설정")
     
-    st.subheader("1. 연간 주행 거리 (km)")
-    mileage = st.slider("연간 몇 km를 주행하시나요?", min_value=5000, max_value=50000, value=15000, step=1000)
+    st.subheader("1. 주행 패턴")
+    mileage = st.slider("연간 주행 거리 (km)", min_value=5000, max_value=50000, value=15000, step=1000)
     
     st.markdown("---")
-    st.subheader("2. 차량 기본 정보 세팅")
+    st.subheader("2. 차량 비교 데이터")
     
-    # 📌 베이스라인 차량(내연기관) 설정
-    st.markdown("**🔹 내연기관차 (가솔린 기준)**")
-    ice_price = st.number_input("차량 가격 (만원)", value=3000, step=100)
-    ice_fuel_eff = st.number_input("연비 (km/L)", value=12.0, step=0.1)
-    ice_fuel_cost = st.number_input("가솔린 가격 (원/L)", value=1600, step=10)
+    with st.expander("🚗 내연기관차 (가솔린)", expanded=True):
+        ice_price = st.number_input("차량 가격 (만원)", value=3000, step=100, key="ice_v2_p")
+        ice_fuel_eff = st.number_input("연비 (km/L)", value=12.5, step=0.1, key="ice_v2_f")
+        ice_fuel_cost = st.number_input("연료비 (원/L)", value=1650, step=10, key="ice_v2_c")
     
-    st.markdown("**🔹 친환경차 (전기차 기준)**")
-    # 보조금을 반영한 실구매가 입력 권장
-    ev_price = st.number_input("차량 가격 (보조금 적용 후, 만원)", value=3800, step=100)
-    ev_fuel_eff = st.number_input("전비 (km/kWh)", value=5.5, step=0.1)
-    ev_fuel_cost = st.number_input("전기차 충전 요금 (원/kWh)", value=320, step=10)
+    with st.expander("⚡ 전기차 (EV)", expanded=True):
+        ev_price = st.number_input("차량 실구매가 (만원)", value=3800, step=100, key="ev_v2_p")
+        ev_fuel_eff = st.number_input("전비 (km/kWh)", value=5.5, step=0.1, key="ev_v2_f")
+        ev_fuel_cost = st.number_input("충전 요금 (원/kWh)", value=340, step=10, key="ev_v2_c")
     
-    # 자동차세 등 고정비 (연간) - 편의상 간략화
-    st.markdown("---")
-    ice_tax = 50  # 약 50만원 (2000cc 기준)
-    ev_tax = 13   # 약 13만원 (전기차 일괄)
-    st.info(f"연간 자동차세: 내연기관(약 {ice_tax}만 원) / 전기차(약 {ev_tax}만 원)")
+    ice_tax = 52 # 자동차세+지방교육세
+    ev_tax = 13  # 전기차 일괄
+    st.caption(f"기준: 연간 자동차세 (내연기관 {ice_tax}만, 전기차 {ev_tax}만)")
 
 # ==========================================
-# 📊 2단계: 데이터 계산
+# 📊 2단계: 핵심 계산
 # ==========================================
-# 1년치 연료비 계산 (단위: 만원)
-# (연간 주행거리 / 연비) * 리터당 가격 / 10000
-ice_annual_fuel = (mileage / ice_fuel_eff) * ice_fuel_cost / 10000
-ev_annual_fuel = (mileage / ev_fuel_eff) * ev_fuel_cost / 10000
+ice_fuel_annual = (mileage / ice_fuel_eff) * ice_fuel_cost / 10000
+ev_fuel_annual = (mileage / ev_fuel_eff) * ev_fuel_cost / 10000
 
-# 연간 총 유지비 (연료비 + 자동차세)
-ice_annual_total = ice_annual_fuel + ice_tax
-ev_annual_total = ev_annual_fuel + ev_tax
+ice_total_annual = ice_fuel_annual + ice_tax
+ev_total_annual = ev_fuel_annual + ev_tax
 
-# 5년치 누적 데이터 프레임 생성
-# X년차 누적 = 차량가격 + (연간유지비 * X년)
-years = range(1, 11) # 1년부터 10년까지
-data = []
+saving_annual = ice_total_annual - ev_total_annual
+price_diff = ev_price - ice_price
 
-for y in years:
-    data.append({
-        "년차": f"{y}년차",
-        "차종": "내연기관차",
-        "누적 비용 (만원)": ice_price + (ice_annual_total * y)
-    })
-    data.append({
-        "년차": f"{y}년차",
-        "차종": "친환경차(EV)",
-        "누적 비용 (만원)": ev_price + (ev_annual_total * y)
-    })
-
-df_cumulative = pd.DataFrame(data)
+# 누적 비용 데이터
+years_arr = np.arange(0, 11)
+ice_costs = ice_price + ice_total_annual * years_arr
+ev_costs = ev_price + ev_total_annual * years_arr
 
 # ==========================================
-# 📈 3단계: 결과 시각화
+# 📉 3단계: 시각화
 # ==========================================
 
-# 상단: 1년 유지비 KPI 요약
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.metric("내연기관차 1년 유지비", f"{ice_annual_total:,.0f} 만원")
-with col2:
-    st.metric("친환경차 1년 유지비", f"{ev_annual_total:,.0f} 만원", delta=f"{ev_annual_total - ice_annual_total:,.0f} 만원 (절감액)", delta_color="inverse")
-with col3:
-    # 역전 시기 (Payback Period) 계산
-    # (EV차량가 - ICE차량가) / (ICE연간유지비 - EV연간유지비)
-    price_diff = ev_price - ice_price
-    cost_saving = ice_annual_total - ev_annual_total
-    
-    if cost_saving > 0 and price_diff > 0:
-        payback_year = price_diff / cost_saving
-        st.metric("손익 분기점 (초기비용 회수)", f"약 {payback_year:.1f}년 후")
-    elif price_diff <= 0:
-         st.metric("손익 분기점", "구매 즉시 이득!")
+# KPI Metrics
+st.markdown('<p class="section-title">💡 경제성 요약</p>', unsafe_allow_html=True)
+kpi1, kpi2, kpi3 = st.columns(3)
+
+with kpi1:
+    st.metric("연간 유지비 (내연기관)", f"{ice_total_annual:,.0f} 만원")
+with kpi2:
+    st.metric("연간 유지비 (전기차)", f"{ev_total_annual:,.0f} 만원", 
+              delta=f"{saving_annual:,.0f} 만원 절감", delta_color="normal")
+with kpi3:
+    if saving_annual > 0:
+        payback = price_diff / saving_annual
+        st.metric("초기비용 회수 기간", f"{payback:.1f} 년" if price_diff > 0 else "즉시 이득")
     else:
-        st.metric("손익 분기점", "회수 불가 (유지비 동일/비쌈)")
-
+        st.metric("초기비용 회수 기간", "회수 불가")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# 차트 영역: 2개의 열로 나누어 Bar 차트와 Line 차트 배치
-chart_col1, chart_col2 = st.columns([1, 1])
+# Charts Section
+col_left, col_right = st.columns(2)
 
-with chart_col1:
-    st.subheader("📊 1년 유지비 상세 비교")
+with col_left:
+    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+    st.markdown("### 📊 1년 유지비 구성")
     
-    # 누적 막대 그래프용 데이터 (연료비, 세금)
-    bar_data = pd.DataFrame({
-        "차종": ["내연기관차", "친환경차(EV)"],
-        "연료비 (만원)": [ice_annual_fuel, ev_annual_fuel],
-        "자동차세 (만원)": [ice_tax, ev_tax]
-    })
+    fig_bar = go.Figure()
+    # 내연기관
+    fig_bar.add_trace(go.Bar(
+        x=['내연기관', '전기차'], y=[ice_fuel_annual, ev_fuel_annual],
+        name='연료비', marker_color='#475569', width=0.4
+    ))
+    fig_bar.add_trace(go.Bar(
+        x=['내연기관', '전기차'], y=[ice_tax, ev_tax],
+        name='자동차세', marker_color='#10b981', width=0.4
+    ))
     
-    fig_bar = px.bar(
-        bar_data, 
-        x="차종", 
-        y=["연료비 (만원)", "자동차세 (만원)"],
-        title=f"연간 주행거리 {mileage:,}km 기준",
+    fig_bar.update_layout(
         barmode='stack',
-        color_discrete_sequence=['#ff9999', '#ffcc99'] # 커스텀 컬러
+        height=400,
+        margin=dict(t=10, b=10, l=10, r=10),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        yaxis=dict(title="단위: 만원", gridcolor='#f1f5f9'),
+        xaxis=dict(gridcolor='rgba(0,0,0,0)')
     )
     st.plotly_chart(fig_bar, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-with chart_col2:
-    st.subheader("📈 N년차 누적 총비용 (차량가 + 유지비)")
+with col_right:
+    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+    st.markdown("### 📈 누적 보유 총비용")
     
-    fig_line = px.line(
-        df_cumulative, 
-        x="년차", 
-        y="누적 비용 (만원)", 
-        color="차종",
-        markers=True,
-        color_discrete_map={"내연기관차": "#7f7f7f", "친환경차(EV)": "#00cc96"}
+    fig_line = go.Figure()
+    
+    # 영역 채우기 및 스플라인 곡선
+    fig_line.add_trace(go.Scatter(
+        x=years_arr, y=ice_costs, name='내연기관차',
+        mode='lines', line=dict(color='#94a3b8', width=2, dash='dot'),
+    ))
+    
+    fig_line.add_trace(go.Scatter(
+        x=years_arr, y=ev_costs, name='전기차 (EV)',
+        mode='lines', line=dict(color='#3b82f6', width=4, shape='spline'),
+        fill='tonexty', fillcolor='rgba(59, 130, 246, 0.05)'
+    ))
+
+    # 손익분기점 포인트 추가 (있는 경우)
+    if 0 < payback <= 10:
+        be_cost = ice_price + ice_total_annual * payback
+        fig_line.add_trace(go.Scatter(
+            x=[payback], y=[be_cost],
+            mode='markers+text',
+            name='손익분기점',
+            text=[f" {payback:.1f}년차 교차"],
+            textposition="top right",
+            marker=dict(color='#f43f5e', size=12, symbol='star')
+        ))
+
+    fig_line.update_layout(
+        height=400,
+        margin=dict(t=10, b=10, l=10, r=10),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        hovermode="x unified",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        xaxis=dict(title="보유 연차", gridcolor='#f1f5f9', dtick=1),
+        yaxis=dict(title="누적 비용 (만원)", gridcolor='#f1f5f9')
     )
-    
-    # 역전 포인트(교차점) 강조 시각화 효과
-    fig_line.update_layout(hovermode="x unified")
-    fig_line.update_traces(line=dict(width=3))
     st.plotly_chart(fig_line, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ==========================================
-# 💡 4단계: 동적 인사이트 메세지
+# 💡 4단계: 분석 리포트
 # ==========================================
-st.markdown("---")
-st.subheader("💡 맞춤형 분석 리포트")
+st.markdown('<p class="section-title">📝 시뮬레이션 결과 리포트</p>', unsafe_allow_html=True)
 
-if cost_saving > 0 and price_diff > 0:
-    st.success(f"현재 선택하신 연간 **{mileage:,}km** 주행 기준으로, 친환경차를 구매하시면 매년 **약 {cost_saving:,.0f}만 원**의 유지비를 절약할 수 있습니다. 초기 차량 가격 차이({price_diff:,}만 원)를 감안할 때, **약 {payback_year:.1f}년** 이상 차량을 운행하신다면 친환경차가 경제적으로 훨씬 유리합니다!")
-elif price_diff <= 0:
-    st.success(f"친환경차의 실 구매가가 더 저렴하며, 매년 유지비도 **{cost_saving:,.0f}만 원** 절약되므로 완벽한 경제적 선택입니다!")
+if saving_annual > 0:
+    st.markdown(f"""
+    - **유지비 절감:** 현재 설정된 주행거리 기준, 전기차는 내연기관차 대비 매년 **약 {saving_annual:,.0f}만 원**의 지출을 줄여줍니다.
+    - **초기 비용 회수:** 전기차 구매 시 더 지불한 초기 비용(**{price_diff:,}만 원**)은 약 **{payback:.1f}년**이 지나면 완전히 회수됩니다.
+    - **10년 후 결과:** 10년 보유 시, 전기차는 내연기관차보다 총 **약 { (ice_costs[10] - ev_costs[10]):,.0f}만 원** 더 경제적입니다.
+    """)
+    if payback <= 4:
+        st.success("✨ **추천:** 운행 거리가 많아 전기차 전환 시 경제적 이득이 매우 빠르게 발생합니다! 강력 추천드립니다.")
+    else:
+        st.info("✨ **분석:** 장기 보유(5년 이상) 계획이 있으시다면 전기차가 경제적으로 유리한 선택이 됩니다.")
 else:
-    st.warning("현재 주행거리 및 설정 기준으로는 초기 차량 가격 차이를 상쇄하기 어렵습니다. 연간 주행거리가 더 길거나 충전/보조금 혜택이 클수록 친환경차가 유리해집니다.")
+    st.warning("⚠️ **주의:** 현재 입력하신 조건(저연비 혹은 고가의 충전료 등)에서는 전기차의 경제적 이점이 크지 않을 수 있습니다.")
+
+st.markdown('</div>', unsafe_allow_html=True)
