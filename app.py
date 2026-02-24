@@ -36,14 +36,13 @@ def load_data():
     # 💡 강원도 명칭 불일치 해결 (데이터: 강원특별자치도 -> GeoJSON: 강원도) [2]
     name_map = {
         '강원특별자치도': '강원도',
-        '제주특별자치도': '제주도',
+        #'제주특별자치도': '제주도',
         '전라북도': '전라북도', 
         '경상북도': '경상북도',
         '경상남도': '경상남도'
     }
     df_master['지역'] = df_master['지역'].replace(name_map)
     df_trend['지역'] = df_trend['지역'].replace(name_map)
-
     # 지표 계산: 친환경차 합계 및 보급률 [4, 6]
     df_master['친환경차_합계'] = df_master['전기'] + df_master['수소']
     df_master['보급률'] = (df_master['친환경차_합계'] / df_master['전체합계']) * 100
@@ -86,19 +85,13 @@ with k3:
     st.metric("전체 차량 중 친환경차 비율", f"{avg_ratio:.2f}%", delta="수정해야함")
 
 st.markdown("---", unsafe_allow_html=True)
-
-#2단
-map_col, trend_col = st.columns([6, 4]) # 6:4 비율
+# 2단: 지도 및 추이 차트
+map_col, trend_col = st.columns([6, 4])
 
 with map_col:
-    # 지도 우측 상단 지역 선택 박스
-    m_head_l, m_head_r = st.columns([0.6, 0.4])
-    m_head_l.markdown("### 🗺️ 지역별 보급률 지도")
-    all_regions = df_master['지역'].unique().tolist()
-    st.selectbox("지역 선택", options=all_regions, 
-                index=all_regions.index(st.session_state.selected_region),
-                key="region_selectbox", on_change=sync_region, label_visibility="collapsed")
-
+    st.markdown("### 🗺️ 지역별 보급률 지도")
+    
+    # --- 1. 지도를 먼저 배치 (클릭 이벤트 우선순위 확보) ---
     fig_map = px.choropleth_mapbox(
         df_master, geojson=geojson, locations='지역', featureidkey="properties.name",
         color='보급률', color_continuous_scale="Greens", mapbox_style="carto-positron",
@@ -107,22 +100,19 @@ with map_col:
     )
     fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
     
-    #지도 클릭시
+    # on_select="rerun" 설정
     map_event = st.plotly_chart(fig_map, use_container_width=True, on_select="rerun", selection_mode="points")
-
+    
+    # --- 2. 지도 클릭 시 세션 업데이트 (가장 먼저 실행됨) ---
     if map_event and "selection" in map_event:
-        # 1. points 리스트를 가져옵니다.
         points = map_event["selection"].get("points", [])
-        
-        # 2. 리스트가 비어있지 않은지 확인합니다.
-        if len(points) > 0:
-            # 3. 리스트의 첫 번째 항목[0]에서 "location"을 꺼내야 합니다.
-            clicked_region = points[0].get("location") 
-            
-        # 4. 세션 상태 업데이트 및 재실행
-        if clicked_region and clicked_region != st.session_state.selected_region:
-            st.session_state.selected_region = clicked_region
-            st.rerun()
+        if points:
+            clicked_region = points[0].get("location")
+            # 데이터 명칭 불일치 방지를 위해 클릭 값이 실제 데이터에 있는지 확인 후 업데이트
+            if clicked_region and clicked_region in df_master['지역'].values:
+                if clicked_region != st.session_state.selected_region:
+                    st.session_state.selected_region = clicked_region
+                    st.rerun()
 
 with trend_col:
     st.markdown(f"### 📈 {st.session_state.selected_region} 성장 추이")
