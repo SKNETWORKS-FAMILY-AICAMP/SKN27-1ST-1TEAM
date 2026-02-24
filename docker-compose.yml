@@ -27,6 +27,8 @@ services:
       - DB_NAME=mobility_db
     depends_on:
       - db
+    volumes:
+      - .:/app
 
 volumes:
   mysql_data:

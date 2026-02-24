@@ -109,14 +109,20 @@ with map_col:
     
     #지도 클릭시
     map_event = st.plotly_chart(fig_map, use_container_width=True, on_select="rerun", selection_mode="points")
-    
-    if map_event and isinstance(map_event, dict) and "selection" in map_event:
+
+    if map_event and "selection" in map_event:
+        # 1. points 리스트를 가져옵니다.
         points = map_event["selection"].get("points", [])
-        if points:
-            clicked_region = points.get("location")
-            if clicked_region and clicked_region != st.session_state.selected_region:
-                st.session_state.selected_region = clicked_region
-                st.rerun()
+        
+        # 2. 리스트가 비어있지 않은지 확인합니다.
+        if len(points) > 0:
+            # 3. 리스트의 첫 번째 항목[0]에서 "location"을 꺼내야 합니다.
+            clicked_region = points[0].get("location") 
+            
+        # 4. 세션 상태 업데이트 및 재실행
+        if clicked_region and clicked_region != st.session_state.selected_region:
+            st.session_state.selected_region = clicked_region
+            st.rerun()
 
 with trend_col:
     st.markdown(f"### 📈 {st.session_state.selected_region} 성장 추이")
