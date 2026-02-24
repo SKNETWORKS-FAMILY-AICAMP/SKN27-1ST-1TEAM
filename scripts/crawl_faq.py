@@ -1,115 +1,121 @@
-import requests
-import sys
 import os
-import re
-from datetime import datetime
-from bs4 import BeautifulSoup
-import urllib3
-
-# SSL 경고 무시
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-# 프로젝트 루트 경로를 sys.path에 추가
+import sys
+import requests
+import asyncio
+from playwright.async_api import async_playwright
+# 프로젝트 루트를 path에 추가하여 utils 호출 가능하게 함
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.db_manager import db_manager
 
-def save_faq(question, answer, category, source):
-    """DB에 FAQ 데이터 저장"""
-    if not question or not answer:
-        return
+async def crawl_kia(browser):
+    print("Crawling Kia...")
+    page = await browser.new_page()
+    await page.goto("https://www.kia.com/kr/vehicles/kia-ev/guide/faq")
     
-    # 확실히 문자열로 변환
-    question = str(question).strip()
-    answer = str(answer).strip()
-    category = str(category or "General").strip()
-    source = str(source).strip()
+    # 아코디언 버튼들이 로드될 때까지 기다림
+    await page.wait_for_selector("button.cmp-accordion__button")
     
-    query = """
-    INSERT INTO faq_data (question, answer, category, source)
-    VALUES (%s, %s, %s, %s)
-    ON DUPLICATE KEY UPDATE
-    answer = VALUES(answer),
-    category = VALUES(category)
-    """
-    try:
-        db_manager.execute_query(query, (question, answer, category, source))
-    except Exception as e:
-        print(f"[{source}] DB Save Error: {e}")
+    faq_items = await page.query_selector_all(".cmp-accordion__item")
+    results = []
+    
+    for item in faq_items:
+        question_btn = await item.query_selector("button.cmp-accordion__button")
+        question = await question_btn.inner_text()
+        
+        # 답변을 보려면 클릭이 필요할 수 있으나, DOM에 이미 존재할 수도 있음
+        answer_panel = await item.query_selector(".cmp-accordion__panel")
+        answer = await answer_panel.inner_html()
+        
+        results.append({
+            "question": question.strip(),
+            "answer": answer.strip(),
+            "category": "Kia EV Guide",
+            "source": "기아"
+        })
+    await page.close()
+    return results
 
-def crawl_hyundai():
-    print("[Hyundai] Starting crawl...")
-    url = "https://www.hyundai.com/kr/ko/gw/customer-support/v1/customer-support/faq/list"
-    headers = {
-        "Content-Type": "application/json;charset=UTF-8",
-        "ep-channel": "homepage",
-        "referer": "https://www.hyundai.com/kr/ko/e/customer/center/faq",
-        "origin": "https://www.hyundai.com",
-        "accept": "application/json, text/plain, */*",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    categories = ["01", "02", "03", "04", "05", "06", "07", "08", "09"]
-    count = 0
-    for cat in categories:
-        page = 1
-        while page <= 2:
-            payload = {"siteTypeCode": "H", "faqCategoryCode": cat, "pageNo": page, "pageSize": 10}
-            try:
-                response = requests.post(url, headers=headers, json=payload, timeout=10)
-                data = response.json()
-                faq_list = data.get("data", {}).get("list", [])
-                if not faq_list: break
-                for item in faq_list:
-                    save_faq(item.get("faqQuestion"), item.get("faqAnswer"), item.get("faqCategoryName"), "Hyundai")
-                    count += 1
-                page += 1
-            except: break
-    print(f"[Hyundai] Total {count} items.")
+async def crawl_ev_portal(browser):
+    print("Crawling EV Portal...")
+    page = await browser.new_page()
+    await page.goto("https://ev.or.kr/nportal/partcptn/initFaqAction.do")
+    
+    # 1페이지 데이터 수집
+    faq_list = await page.query_selector_all(".faq_list > dl")
+    results = []
+    
+    for item in faq_list:
+        question_el = await item.query_selector("dt")
+        question_text = await question_el.inner_text()
+        
+        # 'Q' 텍스트 제거 및 카테고리 분리 시도
+        # 형식: [카테고리] 질문내용
+        question = question_text.replace("Q", "", 1).strip()
+        
+        category = "기타"
+        if "]" in question:
+            category, question = question.split("]", 1)
+            category = category.replace("[", "").strip()
+            question = question.strip()
 
-def crawl_kia():
-    print("[Kia] Starting crawl...")
-    url = "https://www.kia.com/kr/services/ko/faq.search?searchTag=kwp:kr/faq/top10"
-    try:
-        response = requests.get(url, timeout=10)
-        data = response.json()
-        faq_list = data.get("data", {}).get("faqList", {}).get("items", [])
-        count = 0
-        for item in faq_list:
-            save_faq(item.get("question"), item.get("answer"), "인기 FAQ", "Kia")
-            count += 1
-        print(f"[Kia] Total {count} items.")
-    except Exception as e: print(f"[Kia] Error: {e}")
+        answer_el = await item.query_selector("dd")
+        answer = await answer_el.inner_html()
+        
+        results.append({
+            "question": question,
+            "answer": answer.strip(),
+            "category": category,
+            "source": "무공해차 통합누리집"
+        })
+    await page.close()
+    return results
 
 def crawl_kepco():
-    print("[KEPCO] Starting crawl...")
+    print("Crawling KEPCO (API)...")
     url = "https://plug.kepco.co.kr:23001/api/v1/faq"
     try:
-        response = requests.get(url, timeout=10)
-        faq_list = response.json()
-        for item in faq_list:
-            save_faq(item.get("question"), item.get("answer"), item.get("category"), "KEPCO")
-        print(f"[KEPCO] Total {len(faq_list)} items.")
-    except Exception as e: print(f"[KEPCO] Error: {e}")
+        response = requests.get(url, verify=False) # SSL 이슈 대비
+        data = response.json()
+        results = []
+        for item in data:
+            results.append({
+                "question": item.get("question", "").strip(),
+                "answer": item.get("answer", "").strip(),
+                "category": "KEPCO PLUG FAQ",
+                "source": "한전"
+            })
+        return results
+    except Exception as e:
+        print(f"KEPCO crawling failed: {e}")
+        return []
 
-def crawl_ev_portal():
-    print("[EV Portal] Starting crawl...")
-    url = "https://www.ev.or.kr/nportal/partcptn/initFaqAction.do"
-    try:
-        response = requests.get(url, timeout=10, verify=False)
-        soup = BeautifulSoup(response.text, 'html.parser')
-
-        dts = soup.find_all('dt')
-        dds = soup.find_all('dd')
-        count = 0
-        for q, a in zip(dts, dds):
-            q_txt = q.get_text(strip=True)
-            if q_txt and len(q_txt) > 5:
-                save_faq(re.sub(r'^[QA]\.?\s*', '', q_txt), str(a), "환경부 정책", "EV Portal")
-                count += 1
-        print(f"[EV Portal] Total {count} items.")
-    except Exception as e: print(f"[EV Portal] Error: {e}")
+async def main():
+    # 기존 데이터 삭제 (중복 방지)
+    db_manager.execute_query("DELETE FROM faq_data")
+    
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        
+        # 기아 수집
+        kia_data = await crawl_kia(browser)
+        # EV 포털 수집
+        ev_data = await crawl_ev_portal(browser)
+        # 한전 수집
+        kepco_data = crawl_kepco()
+        
+        all_data = kia_data + ev_data + kepco_data
+        
+        print(f"Total collected: {len(all_data)}")
+        
+        # DB 저장
+        for item in all_data:
+            db_manager.execute_query(
+                "INSERT INTO faq_data (question, answer, category, source) VALUES (%s, %s, %s, %s)",
+                (item["question"], item["answer"], item["category"], item["source"])
+            )
+        
+        await browser.close()
+    print("Crawling finished and data saved.")
 
 if __name__ == "__main__":
-    crawl_hyundai()
-    crawl_kia()
-    crawl_kepco()
-    crawl_ev_portal()
+    asyncio.run(main())

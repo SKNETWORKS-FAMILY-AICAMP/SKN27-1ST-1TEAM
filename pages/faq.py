@@ -39,6 +39,9 @@ try:
     with col1:
         sources = ["전체"] + sorted(df["source"].unique().tolist())
         selected_source = st.selectbox("📌 브랜드/출처 선택", sources)
+        if "prev_source" not in st.session_state or st.session_state.prev_source != selected_source:
+            st.session_state.faq_page = 1
+            st.session_state.prev_source = selected_source
     
     # 필터링 1: 브랜드
     if selected_source != "전체":
@@ -47,30 +50,59 @@ try:
     with col2:
         categories = ["전체"] + sorted(df["category"].unique().tolist())
         selected_category = st.selectbox("📂 카테고리 선택", categories)
+        if "prev_category" not in st.session_state or st.session_state.prev_category != selected_category:
+            st.session_state.faq_page = 1
+            st.session_state.prev_category = selected_category
 
     # 필터링 2: 카테고리
     if selected_category != "전체":
         df = df[df["category"] == selected_category]
 
     st.info(f"선택된 조건에 맞는 질문이 **{len(df)}개** 검색되었습니다.")
-
-    # FAQ 목록 표시
-    for _, row in df.iterrows():
-        source_label = f"[{row['source']}] " if selected_source == "전체" else ""
-        with st.expander(f"{source_label}{row['question']}"):
-            st.markdown(f"**카테고리:** {row['category']}")
-            st.markdown("---")
-            st.markdown(row['answer'], unsafe_allow_html=True)
-
-    # 데이터 수집 버튼 (하단)
     st.write("---")
-    if st.button("🔄 최신 데이터로 업데이트 (크롤링 실행)"):
-        with st.spinner("전체 사이트에서 최신 FAQ를 가져오는 중입니다..."):
-            import subprocess
-            import sys
-            subprocess.run([sys.executable, "scripts/crawl_faq.py"])
-            st.success("업데이트 완료!")
-            st.rerun()
+
+    # --- 페이지네이션 구현 ---
+    items_per_page = 10
+    total_items = len(df)
+    total_pages = (total_items - 1) // items_per_page + 1 if total_items > 0 else 1
+
+    if total_items > 0:
+        # 데이터 슬라이싱
+        start_idx = (st.session_state.get('faq_page', 1) - 1) * items_per_page
+        end_idx = min(start_idx + items_per_page, total_items)
+        page_df = df.iloc[start_idx:end_idx]
+
+        # FAQ 목록 표시
+        for _, row in page_df.iterrows():
+            source_label = f"[{row['source']}] " if selected_source == "전체" else ""
+            with st.expander(f"{source_label}{row['question']}"):
+                st.markdown(f"**카테고리:** {row['category']}")
+                st.markdown("---")
+                st.markdown(row['answer'], unsafe_allow_html=True)
+        
+        st.write("---")
+        # 페이지 선택 (하단으로 이동)
+        if total_pages > 1:
+            col_p1, col_p2, col_p3 = st.columns([1, 1, 1])
+            with col_p2:
+                current_page = st.number_input(
+                    f"페이지 (1/{total_pages})", 
+                    min_value=1, 
+                    max_value=total_pages, 
+                    value=st.session_state.get('faq_page', 1), 
+                    step=1,
+                    key='faq_page_input'
+                )
+                if current_page != st.session_state.get('faq_page', 1):
+                    st.session_state['faq_page'] = current_page
+                    st.rerun()
+        else:
+            current_page = 1
+
+        # 하단 페이지 정보
+        st.write(f"<center>현재 {st.session_state.get('faq_page', 1)} / {total_pages} 페이지 (총 {total_items}개 중 {start_idx + 1}-{end_idx} 표시)</center>", unsafe_allow_html=True)
+    else:
+        st.warning("조건에 맞는 FAQ가 없습니다.")
 
 except Exception as global_err:
     st.error("페이지 실행 중 오류가 발생했습니다.")
