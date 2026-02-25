@@ -22,9 +22,9 @@ pip install -r requirements.txt
 
 ### Mac/Linux
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+uv venv .venv --python 3.13 
+.\.venv\Scripts\activate
+uv pip install -r .\requirements.txt
 ```
 
 ## 3. Docker 버전을 이용한 MySQL DB 실행
