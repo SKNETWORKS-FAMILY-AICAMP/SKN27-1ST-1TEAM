@@ -71,8 +71,17 @@ with st.sidebar:
     st.caption(f"기준: 연간 자동차세 (내연기관 {ice_tax}만, 전기차 {ev_tax}만)")
 
 # ==========================================
-# 📊 2단계: 핵심 계산
+# 📊 2단계: 핵심 계산 및 입력 검증
 # ==========================================
+
+# 변수 초기화
+payback = None
+
+# 입력 값 검증
+if ice_fuel_eff <= 0 or ev_fuel_eff <= 0 or ev_fuel_cost > ice_fuel_cost:
+    st.error("잘못된 값을 입력했습니다.")
+    st.stop()
+
 ice_fuel_annual = (mileage / ice_fuel_eff) * ice_fuel_cost / 10000
 ev_fuel_annual = (mileage / ev_fuel_eff) * ev_fuel_cost / 10000
 
@@ -81,6 +90,9 @@ ev_total_annual = ev_fuel_annual + ev_tax
 
 saving_annual = ice_total_annual - ev_total_annual
 price_diff = ev_price - ice_price
+
+if saving_annual > 0:
+    payback = price_diff / saving_annual
 
 # 누적 비용 데이터
 years_arr = np.arange(0, 11)
@@ -102,8 +114,10 @@ with kpi2:
               delta=f"{saving_annual:,.0f} 만원 절감", delta_color="normal")
 with kpi3:
     if saving_annual > 0:
-        payback = price_diff / saving_annual
-        st.metric("초기비용 회수 기간", f"{payback:.1f} 년" if price_diff > 0 else "즉시 이득")
+        if price_diff <= 0:
+            st.metric("초기비용 회수 기간", "즉시 이득")
+        else:
+            st.metric("초기비용 회수 기간", f"{payback:.1f} 년")
     else:
         st.metric("초기비용 회수 기간", "회수 불가")
 
@@ -157,7 +171,7 @@ with col_right:
     ))
 
     # 손익분기점 포인트 추가 (있는 경우)
-    if 0 < payback <= 10:
+    if payback is not None and 0 < payback <= 10:
         be_cost = ice_price + ice_total_annual * payback
         fig_line.add_trace(go.Scatter(
             x=[payback], y=[be_cost],
@@ -187,14 +201,20 @@ with col_right:
 st.markdown('<p class="section-title">📝 시뮬레이션 결과 리포트</p>', unsafe_allow_html=True)
 
 if saving_annual > 0:
-    st.markdown(f"""
-    - **유지비 절감:** 현재 설정된 주행거리 기준, 전기차는 내연기관차 대비 매년 **약 {saving_annual:,.0f}만 원**의 지출을 줄여줍니다.
-    - **초기 비용 회수:** 전기차 구매 시 더 지불한 초기 비용(**{price_diff:,}만 원**)은 약 **{payback:.1f}년**이 지나면 완전히 회수됩니다.
-    - **10년 후 결과:** 10년 보유 시, 전기차는 내연기관차보다 총 **약 { (ice_costs[10] - ev_costs[10]):,.0f}만 원** 더 경제적입니다.
-    """)
-    if payback <= 4:
-        st.success("✨ **추천:** 운행 거리가 많아 전기차 전환 시 경제적 이득이 매우 빠르게 발생합니다! 강력 추천드립니다.")
+    st.markdown(f"- **유지비 절감:** 현재 설정된 주행거리 기준, 전기차는 내연기관차 대비 매년 **약 {saving_annual:,.0f}만 원**의 지출을 줄여줍니다.")
+    
+    if price_diff > 0:
+        st.markdown(f"- **초기 비용 회수:** 전기차 구매 시 더 지불한 초기 비용(**{price_diff:,}만 원**)은 약 **{payback:.1f}년**이 지나면 완전히 회수됩니다.")
     else:
+        st.markdown(f"- **가격 경쟁력:** 전기차의 실구매가가 내연기관차와 같거나 더 저렴하여, **구매 즉시** 경제적 이득이 발생합니다.")
+        
+    st.markdown(f"- **10년 후 결과:** 10년 보유 시, 전기차는 내연기관차보다 총 **약 { (ice_costs[10] - ev_costs[10]):,.0f}만 원** 더 경제적입니다.")
+    
+    if payback is not None and payback <= 4:
+        st.success("✨ **추천:** 운행 거리가 많아 전기차 전환 시 경제적 이득이 매우 빠르게 발생합니다! 강력 추천드립니다.")
+    elif price_diff <= 0:
+        st.success("✨ **강력 추천:** 초기 비용도 저렴하고 유지비도 절감되므로 망설일 이유가 없는 최고의 선택입니다!")
+    elif price_diff >= 0 and price_diff <= 100:
         st.info("✨ **분석:** 장기 보유(5년 이상) 계획이 있으시다면 전기차가 경제적으로 유리한 선택이 됩니다.")
 else:
     st.warning("⚠️ **주의:** 현재 입력하신 조건(저연비 혹은 고가의 충전료 등)에서는 전기차의 경제적 이점이 크지 않을 수 있습니다.")
