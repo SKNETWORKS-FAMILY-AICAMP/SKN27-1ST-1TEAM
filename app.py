@@ -13,16 +13,21 @@ st.set_page_config(page_title="전국 친환경차 현황 대시보드", layout=
 # --- 공통 데이터 로드 함수 ---
 @st.cache_data
 def load_data():
-    # 데이터 로드
-    df_main = pd.read_csv("전기차_일반차_통합.csv", encoding="utf-8-sig")
-    df_fuel = pd.read_csv("지역별_연료별_등록대수_최종.csv", encoding="utf-8-sig")
-    
-    # [수정] 보조금 tidy 데이터 로드 (인코딩 에러 방지 위해 utf-8-sig 권장)
+    # 데이터 로드 (DB에서 직접 조회)
     try:
-        df_subsidy = pd.read_csv("전기차보조금_tidy.csv", encoding="utf-8-sig")
-    except:
-        df_subsidy = pd.read_csv("전기차보조금_tidy.csv", encoding="cp949")
-    
+        # 1. 전기차/일반차 통합 데이터 (regional_ev_status)
+        df_main = db_manager.fetch_query("SELECT region, year, count_ev, count_ice as 일반차 FROM regional_ev_status")
+        
+        # 2. 연료별 데이터 (regional_fuel_status)
+        df_fuel = db_manager.fetch_query("SELECT region as 지역, year as 연도, fuel_type as 연료, count as 대수 FROM regional_fuel_status")
+        
+        # 3. 보조금 데이터 (ev_subsidy_status)
+        df_subsidy = db_manager.fetch_query("SELECT region as 지역, category as 보조금항목, amount as 금액 FROM ev_subsidy_status")
+    except Exception as e:
+        st.error(f"DB 데이터 로드 중 오류 발생: {e}")
+        st.stop()
+
+    # GeoJSON은 그대로 API 이용
     geojson_url = "https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_provinces_geo_simple.json"
     geojson = requests.get(geojson_url).json()
 
@@ -37,18 +42,16 @@ def load_data():
     }
     df_main['region_full'] = df_main['region'].replace(name_map)
     df_fuel['지역_full'] = df_fuel['지역'].replace(name_map)
-    # 보조금 데이터에도 지역 풀네임 적용 (필요 시)
     df_subsidy['지역_full'] = df_subsidy['지역'].replace(name_map)
 
     # 데이터 타입 정제
     df_main['year'] = df_main['year'].astype(int)
     df_fuel['연도'] = pd.to_numeric(df_fuel['연도'], errors='coerce').fillna(0).astype(int)
 
-    # 보급률 계산 로직
+    # 보급률 계산 로직 (기존 DB의 count_ice 컬럼이 기존의 '일반차'로 매핑됨)
     df_main['총자동차'] = df_main['count_ev'] + df_main['일반차']
     df_main['보급률'] = (df_main['count_ev'] / df_main['총자동차']) * 100
 
-    # [중요] 4개의 값을 정확히 반환
     return geojson, df_main, df_fuel, df_subsidy
 
 # --- 메인 대시보드 페이지 함수 정의 ---
@@ -143,17 +146,33 @@ def dashboard_page():
 
     st.markdown("---")
 
-    # --- 5. 연료별 비중 및 보조금 현황 ---
+    # --- 5. 지역별 보급률 및 보조금 현황 ---
     donut, dframe = st.columns(2)
     with donut:
-        st.markdown(f"### {st.session_state.selected_region} 연료별 비중")
-        region_fuel = df_fuel[(df_fuel['지역_full'] == st.session_state.selected_region) & (df_fuel['연도'] == 2026)]
-
-        if not region_fuel.empty:
-            fig_donut = px.pie(region_fuel, values='대수', names='연료', hole=.4,
-                                color_discrete_sequence=px.colors.qualitative.Safe)
-            fig_donut.update_layout(margin={"r":20,"t":20,"l":20,"b":20}, height=400)
-            st.plotly_chart(fig_donut, use_container_width=True)
+        st.markdown(f"### 📊 지역별 보급률 비교 ({target_year})")
+        
+        # 보급률 기준으로 데이터 정렬
+        df_sorted = df_2026.sort_values('보급률', ascending=True)
+        
+        # 선택된 지역만 눈에 띄게 하이라이트 색상 적용
+        colors = ['#3b82f6' if reg == st.session_state.selected_region else '#cbd5e1' for reg in df_sorted['region_full']]
+        
+        fig_bar = go.Figure(go.Bar(
+            x=df_sorted['보급률'],
+            y=df_sorted['region_full'],
+            orientation='h',
+            marker_color=colors,
+            text=df_sorted['보급률'].apply(lambda x: f"{x:.1f}%"),
+            textposition='inside'
+        ))
+        
+        fig_bar.update_layout(
+            margin={"r":5,"t":30,"l":5,"b":5}, 
+            height=400,
+            xaxis=dict(title="보급률 (%)", showgrid=True),
+            yaxis=dict(title="", tickmode='linear')
+        )
+        st.plotly_chart(fig_bar, use_container_width=True)
 
     with dframe:
         st.markdown(f"### {st.session_state.selected_region} 보조금 현황")
