@@ -54,7 +54,7 @@ def load_data():
 
     return geojson, df_main, df_fuel, df_subsidy
 
-# --- 메인 대시보드 페이지 함수 정의 ---
+# --- 메인 대시보드 페이지 함수 정의 ---================================================================
 def dashboard_page():
     # 데이터 가져오기
     geojson, df_main, df_fuel, df_subsidy = load_data()
@@ -63,34 +63,39 @@ def dashboard_page():
     target_year = 2026
     df_2026 = df_main[df_main['year'] == target_year].drop_duplicates(['region'])
     df_2025 = df_main[df_main['year'] == 2025].drop_duplicates(['region'])
+    df_2024 = df_main[df_main['year'] == 2024].drop_duplicates(['region'])
+    
 
+    # 누적 등록 대수 및 차이 계산
     total_ev_2026 = df_2026['count_ev'].sum()
-    total_cars_2026 = df_2026['총자동차'].sum()
     total_ev_2025 = df_2025['count_ev'].sum()
-
+    total_ev_2024 = df_2024['count_ev'].sum()
+    ev_delta = total_ev_2026 - total_ev_2025  # 작년 대비 늘어난 대수
+    total_cars_2026 = df_2026['총자동차'].sum()
     avg_ratio = (total_ev_2026 / total_cars_2026) * 100
     total_growth = ((total_ev_2026 - total_ev_2025) / total_ev_2025) * 100
 
-# --- 3. UI 레이아웃 ---
+    # 보급률(비중) 및 차이 계산
+    avg_ratio_2026 = (total_ev_2026 / df_2026['총자동차'].sum()) * 100
+    avg_ratio_2025 = (total_ev_2025 / df_2025['총자동차'].sum()) * 100
+    ratio_delta = avg_ratio_2026 - avg_ratio_2025  # 작년 대비 늘어난 퍼센트 포인트
+
+    # 증감율(성장률) 계산 및 이전 년도 증감율과의 차이
+    total_growth_2026 = ((total_ev_2026 - total_ev_2025) / total_ev_2025) * 100
+    total_growth_2025 = ((total_ev_2025 - total_ev_2024) / total_ev_2024) * 100
+    
+    # 만약 2024년 데이터도 있다면 성장률의 변화(delta)도 계산 가능하지만, 
+    # 보통 증감율 metric의 delta에는 성장률 수치 자체를 넣기도 합니다.
+
+# --- 3. UI 레이아웃 ---===============================================================================
     st.title(f"전국 친환경차 현황 대시보드")
     st.markdown("---")
 
-    # KPI 표시
-    k1, k2, k3 = st.columns(3)
-    with k1:
-        st.metric("전국 전기차 누적 등록", f"{total_ev_2026:,.0f} 대")
-    with k2:
-        st.metric("전국 통합 증감율 (25년 대비)", f"{total_growth:.1f}%")
-    with k3:
-        st.metric("전체 차량 중 전기차 비중", f"{avg_ratio:.2f}%")
-
-    st.markdown("---")
-
-    # --- 4. 지도 및 추이 섹션 ---
+    # 중앙 좌측-----------------------------------------------------------------------
     if "selected_region" not in st.session_state:
         st.session_state.selected_region = "서울특별시"
 
-    map_col, trend_col = st.columns([6, 4])
+    trend_col, map_col = st.columns([4, 6])
 
     with map_col:
         st.markdown("### 지역별 보급률 지도 (%)")
@@ -127,18 +132,75 @@ def dashboard_page():
                         st.session_state.selected_region = clicked_region
                         st.rerun()
 
-    #지도 오른쪽 차트
+    #중앙 오른쪽-----------------------------------------------------------------------------------
     with trend_col:
+        st.metric(
+                label="전국 전기차 누적 등록", 
+                value=f"{total_ev_2026:,.0f} 대", 
+                delta=f"{ev_delta:,.0f} 대"
+            )
+        st.divider()
+
+        # 2. 통합 증감율: 소수점 1자리(.1f) + '%'
+        # delta에는 이전 시점 대비 성장폭을 넣거나 간단한 문구를 넣을 수 있습니다.
+        st.metric(
+            label="전국 통합 증감율", 
+            value=f"{total_growth:.1f}%",
+            delta=f"{total_growth_2026 - total_growth_2025:.1f}%" if 'total_growth' in locals() else "상승세" 
+        )
+        st.divider()
+
+        # 3. 비중: 소수점 2자리(.2f) + '%' / 델타는 '%p'
+        st.metric(
+            label="전체 차량 중 전기차 비중", 
+            value=f"{avg_ratio:.2f}%", 
+            delta=f"{ratio_delta:.2f}%p"
+        )
+    # 하단
+    st.markdown("---")
+    mmchart,dframe = st.columns(2)
+    with dframe:
+        st.markdown(f"### {st.session_state.selected_region} 보조금 현황")
+        
+        sub = df_subsidy[df_subsidy['지역_full'] == st.session_state.selected_region].copy()
+        
+        if not sub.empty:
+            # 차종/항목 분리
+            sub[['차종', '항목']] = sub['보조금항목'].str.extract(r'(승용|초소형|화물)(.*)')
+
+            res = sub.pivot(index='차종', columns='항목', values='금액')
+            res = res.reindex(index=['승용', '초소형', '화물'], 
+                            columns=['최대보조금', '최소보조금', '보조금평균값']).fillna(0).astype(int)
+            st.table(res)
+            st.markdown('''
+            1. 법적 근거
+                
+            「환경친화적 자동차의 개발 및 보급 촉진에 관한 법률」 제10조 및 「대기환경보전법」 제58조에 기반하여 구매 보조금 지원.
+            
+            2 .보조금 구조
+                
+            국비 보조금(환경부)과 지방비 보조금(지자체)을 합산하여 지급.
+            
+            3 .지급 대상
+                
+            전기승용차, 전기화물차, 전기승합차 등 보급평가 기준을 충족한 차량.
+        
+
+            ''')
+        else:
+            st.warning("해당 지역의 보조금 데이터가 없습니다.")
+
+    with mmchart:
+        # 해당지역 전기차, 비전기차 등록 추이 비교 차트
+        # min-max scaling
         st.markdown(f"### {st.session_state.selected_region} 등록 추이 (Scaled)")
         reg_trend = df_main[df_main['region_full'] == st.session_state.selected_region].sort_values('year')
         
         if not reg_trend.empty:
-            # 1. 함수 정의 (분모가 0일 때 에러 방지 포함)
             scale_fn = lambda x: (x - x.min()) / (x.max() - x.min()) if (x.max() - x.min()) != 0 else x * 0
             
             fig_trend = go.Figure()
 
-            # 2. 함수 호출로 데이터 입력
             fig_trend.add_trace(go.Scatter(
                 x=reg_trend['year'], 
                 y=scale_fn(reg_trend['일반차']), 
@@ -158,54 +220,7 @@ def dashboard_page():
                 height=400, margin=dict(l=0, r=0, t=30, b=0)
             )
             st.plotly_chart(fig_trend, use_container_width=True)
-        st.markdown("---")
 
-    # --- 5. 지역별 보급률 및 보조금 현황 ---
-    donut, dframe = st.columns(2)
-    with donut:
-        st.markdown(f"### 📊 지역별 보급률 비교 ({target_year})")
-        
-        # 보급률 기준으로 데이터 정렬
-        df_sorted = df_2026.sort_values('보급률', ascending=True)
-        
-        # 선택된 지역만 눈에 띄게 하이라이트 색상 적용
-        colors = ['#3b82f6' if reg == st.session_state.selected_region else '#cbd5e1' for reg in df_sorted['region_full']]
-        
-        fig_bar = go.Figure(go.Bar(
-            x=df_sorted['보급률'],
-            y=df_sorted['region_full'],
-            orientation='h',
-            marker_color=colors,
-            text=df_sorted['보급률'].apply(lambda x: f"{x:.1f}%"),
-            textposition='inside'
-        ))
-        
-        fig_bar.update_layout(
-            margin={"r":5,"t":30,"l":5,"b":5}, 
-            height=400,
-            xaxis=dict(title="보급률 (%)", showgrid=True),
-            yaxis=dict(title="", tickmode='linear')
-        )
-        st.plotly_chart(fig_bar, use_container_width=True)
-
-    with dframe:
-        st.markdown(f"### {st.session_state.selected_region} 보조금 현황")
-        
-        # 1. 정확한 지역 풀네임으로 필터링
-        sub = df_subsidy[df_subsidy['지역_full'] == st.session_state.selected_region].copy()
-        
-        if not sub.empty:
-            # 2. 차종/항목 분리
-            sub[['차종', '항목']] = sub['보조금항목'].str.extract(r'(승용|초소형|화물)(.*)')
-
-            # 3. 피벗 및 구조 고정
-            res = sub.pivot(index='차종', columns='항목', values='금액')
-            res = res.reindex(index=['승용', '초소형', '화물'], 
-                            columns=['최대보조금', '최소보조금', '보조금평균값']).fillna(0).astype(int)
-
-            st.table(res)
-        else:
-            st.warning("해당 지역의 보조금 데이터가 없습니다.")
 # --- 네비게이션 설정 ---
 pg = st.navigation([
     st.Page(dashboard_page, title="전국 보급 현황", icon="🌱"),
