@@ -4,8 +4,4 @@ plotly==5.18.0
 requests==2.32.5
 mysql-connector-python==9.6.0
 sqlalchemy==2.0.46
-<<<<<<< HEAD
 beautifulsoup4==4.12.3
-=======
-
->>>>>>> origin/feature-23
