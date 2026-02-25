@@ -127,24 +127,38 @@ def dashboard_page():
                         st.session_state.selected_region = clicked_region
                         st.rerun()
 
+    #지도 오른쪽 차트
     with trend_col:
-        st.markdown(f"### {st.session_state.selected_region} 등록 추이")
+        st.markdown(f"### {st.session_state.selected_region} 등록 추이 (Scaled)")
         reg_trend = df_main[df_main['region_full'] == st.session_state.selected_region].sort_values('year')
         
         if not reg_trend.empty:
+            # 1. 함수 정의 (분모가 0일 때 에러 방지 포함)
+            scale_fn = lambda x: (x - x.min()) / (x.max() - x.min()) if (x.max() - x.min()) != 0 else x * 0
+            
             fig_trend = go.Figure()
-            fig_trend.add_trace(go.Scatter(x=reg_trend['year'], y=reg_trend['일반차'], name="비전기차(일반)", line=dict(color='#3498DB', width=3)))
-            fig_trend.add_trace(go.Scatter(x=reg_trend['year'], y=reg_trend['count_ev'], name="전기차", line=dict(color='#E74C3C', width=4)))
+
+            # 2. 함수 호출로 데이터 입력
+            fig_trend.add_trace(go.Scatter(
+                x=reg_trend['year'], 
+                y=scale_fn(reg_trend['일반차']), 
+                name="비전기차", line=dict(color='#3498DB', width=3)
+            ))
+            
+            fig_trend.add_trace(go.Scatter(
+                x=reg_trend['year'], 
+                y=scale_fn(reg_trend['count_ev']), 
+                name="전기차", line=dict(color='#E74C3C', width=4)
+            ))
             
             fig_trend.update_layout(
                 xaxis=dict(type='category'),
+                yaxis=dict(showticklabels=False),
                 hovermode="x unified",
-                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-                margin=dict(l=0, r=0, t=30, b=0), height=400
+                height=400, margin=dict(l=0, r=0, t=30, b=0)
             )
             st.plotly_chart(fig_trend, use_container_width=True)
-
-    st.markdown("---")
+        st.markdown("---")
 
     # --- 5. 지역별 보급률 및 보조금 현황 ---
     donut, dframe = st.columns(2)
