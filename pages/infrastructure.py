@@ -3,11 +3,12 @@ import pandas as pd
 from utils.db_manager import db_manager
 import plotly.express as px
 
-st.set_page_config(page_title="충전소 인프라 현황", page_icon="⚡", layout="wide")
 
 st.title("⚡ 실시간 전기차 충전 인프라")
 st.markdown("전국의 전기차 충전소 위치와 현황을 한눈에 확인하세요.")
 st.write("---")
+
+
 
 # DB 데이터 로드
 try:
@@ -30,15 +31,16 @@ if df.empty:
                 st.error(f"동기화 실패: {result.stderr}")
     st.stop()
 
-# --- 사이드바 필터 ---
-st.sidebar.header("🔍 상세 필터")
+# --- 상단 필터 ---
+st.markdown("### 🔍 상세 검색 및 필터")
+filter_col1, filter_col2 = st.columns(2)
 
-# 운영기관 필터
-operators = ["전체"] + sorted(df["operator"].unique().tolist())
-selected_operator = st.sidebar.selectbox("🏢 운영기관", operators)
+with filter_col1:
+    operators = ["전체"] + sorted(df["operator"].unique().tolist())
+    selected_operator = st.selectbox("🏢 운영기관 선택", operators)
 
-# 충전기 타입 필터
-charger_type = st.sidebar.radio("⚡ 충전기 타입", ["전체", "급속 위주", "완속 위주"])
+with filter_col2:
+    charger_type = st.radio("⚡ 충전기 타입", ["전체", "급속 위주", "완속 위주"], horizontal=True)
 
 # 필터링 적용
 filtered_df = df.copy()
@@ -74,13 +76,27 @@ if not filtered_df.empty:
             lat="lat", 
             lon="lng", 
             hover_name="name", 
-            hover_data=["address", "fast_count", "slow_count", "operator"],
+            hover_data={
+                "lat": False,
+                "lng": False,
+                "address": True, 
+                "fast_count": True, 
+                "slow_count": True, 
+                "operator": True
+            },
+            labels={
+                "address": "주소",
+                "fast_count": "급속 충전기",
+                "slow_count": "완속 충전기",
+                "operator": "운영기관",
+                "size": "충전기 수(규모)"
+            },
             color="fast_count",
-            size=map_df["fast_count"] + map_df["slow_count"] + 2, # 최소 크기 보장
+            size=map_df["fast_count"] + map_df["slow_count"],
             color_continuous_scale=px.colors.cyclical.IceFire,
             size_max=15, 
             zoom=10,
-            center={"lat": 37.65956, "lon": 126.8429}, # 시작 좌표 중심을 기존 서울(시청)보다 살짝 더 위(북쪽)로 설정
+            center={"lat": 37.65956, "lon": 126.8429},
             mapbox_style="carto-positron"
         )
         fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=500)
@@ -92,15 +108,6 @@ else:
 st.write("---")
 st.subheader("📋 충전소 상세 목록")
 # 가독성을 위해 일부 컬럼만 표시
-display_df = filtered_df[["name", "address", "fast_count", "slow_count", "operator", "last_updated"]]
-display_df.columns = ["이름", "주소", "급속", "완속", "운영기관", "최종갱신"]
+display_df = filtered_df[["name", "address", "fast_count", "slow_count", "operator"]]
+display_df.columns = ["이름", "주소", "급속", "완속", "운영기관"]
 st.dataframe(display_df, use_container_width=True, hide_index=True)
-
-# 하단 갱신 정보
-if st.button("최신 데이터로 갱신하기"):
-    with st.spinner("동기화 중..."):
-        import subprocess
-        import sys
-        subprocess.run([sys.executable, "scripts/sync_infra.py"])
-        st.success("갱신 완료!")
-        st.rerun()

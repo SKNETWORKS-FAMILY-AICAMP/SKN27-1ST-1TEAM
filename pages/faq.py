@@ -33,6 +33,16 @@ try:
                     st.error(f"수집 실패: {result.stderr}")
         st.stop()
 
+    # 키워드 검색
+    search_keyword = st.text_input("🔍 키워드 검색", placeholder="궁금한 내용을 입력하세요...")
+    if "prev_keyword" not in st.session_state or st.session_state.prev_keyword != search_keyword:
+        st.session_state.faq_page = 1
+        st.session_state.prev_keyword = search_keyword
+        
+    if search_keyword:
+        df = df[df["question"].str.contains(search_keyword, case=False, na=False) | 
+                df["answer"].str.contains(search_keyword, case=False, na=False)]
+
     # 상단 필터 (브랜드 및 카테고리)
     col1, col2 = st.columns(2)
     
