@@ -13,7 +13,52 @@ def migrate():
         conn = db_manager.get_connection()
         cursor = conn.cursor()
 
-        # 1. regional_ev_status 테이블에 count_ice 열 추가 (일반차 데이터)
+        # 0. 핵심 테이블 전체 초기화 (없는 경우에만 생성)
+        print('Initializing missing core tables...')
+        
+        # faq_data 생성
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS faq_data (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                question TEXT,
+                answer TEXT,
+                category VARCHAR(255),
+                source VARCHAR(255),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # charging_stations 생성
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS charging_stations (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                station_id VARCHAR(100) UNIQUE,
+                name VARCHAR(255),
+                address VARCHAR(255),
+                lat FLOAT,
+                lng FLOAT,
+                fast_count INT DEFAULT 0,
+                slow_count INT DEFAULT 0,
+                operator VARCHAR(100),
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # regional_ev_status 기본 생성
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS regional_ev_status (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                region VARCHAR(100),
+                year INT,
+                count_ev INT,
+                count_charger INT DEFAULT 0,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY unique_region_year (region, year)
+            )
+        ''')
+        conn.commit()
+
+        # 1. regional_ev_status 테이블에 count_ice 열 추가 (일반차 데이터용 컬럼)
         try:
             cursor.execute("SHOW COLUMNS FROM regional_ev_status LIKE 'count_ice'")
             if not cursor.fetchone():
