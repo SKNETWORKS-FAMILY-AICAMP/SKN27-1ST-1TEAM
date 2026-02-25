@@ -23,14 +23,6 @@ st.markdown("""
         box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
         border: 1px solid #f1f5f9;
     }
-    .chart-card {
-        background-color: #ffffff;
-        padding: 28px;
-        border-radius: 16px;
-        box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05);
-        border: 1px solid #f1f5f9;
-        margin-bottom: 24px;
-    }
     .section-title {
         font-size: 1.4rem;
         font-weight: 700;
@@ -121,7 +113,6 @@ st.markdown("<br>", unsafe_allow_html=True)
 col_left, col_right = st.columns(2)
 
 with col_left:
-    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
     st.markdown("### 📊 1년 유지비 구성")
     
     fig_bar = go.Figure()
@@ -149,7 +140,6 @@ with col_left:
     st.markdown('</div>', unsafe_allow_html=True)
 
 with col_right:
-    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
     st.markdown("### 📈 누적 보유 총비용")
     
     fig_line = go.Figure()
