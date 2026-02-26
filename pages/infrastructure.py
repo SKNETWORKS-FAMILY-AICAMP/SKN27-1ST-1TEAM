@@ -99,7 +99,11 @@ if not filtered_df.empty:
             center={"lat": 37.65956, "lon": 126.8429},
             mapbox_style="carto-positron"
         )
-        fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=500)
+        fig.update_layout(
+            margin={"r":0,"t":0,"l":0,"b":0}, 
+            height=500,
+            coloraxis_colorbar_title_text="충전기 수(규모)"
+        )
         st.plotly_chart(fig, use_container_width=True)
 else:
     st.warning("선택된 조건에 맞는 충전소가 없습니다.")
