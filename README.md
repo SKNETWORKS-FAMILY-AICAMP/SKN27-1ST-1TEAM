@@ -3,8 +3,8 @@
 # 1. 팀 소개
 ## 1-1. 팀원 소개
 | 팀원1 | 팀원2 | 팀원3 | 팀원4 | 팀원5 | 팀원6 |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| <img width="600" height="100" alt="이재희" src="https://cdn.discordapp.com/attachments/1079308781399326791/1476401138776408218/-1.jpg?ex=69a0fd35&is=699fabb5&hm=fd840513130562d88cfab578a67e741694fdfc032f7736194d5fabec377a08e7&" /> | <img width="600" height="100" alt="김민경" src="https://cdn.discordapp.com/attachments/1474686000931541074/1476383674005196963/0caee26a27ce7484.jpg?ex=69a0ecf1&is=699f9b71&hm=1c9bac1e9352500069d2ab5caf61b6f4e02aed22ee54222b5fd2b1be04fcf929&" /> | <img width="600" height="100" alt="김경수" src="https://cdn.discordapp.com/attachments/1476399982658715698/1476400008210157679/KakaoTalk_20230329_102848659.jpg?ex=69a0fc28&is=699faaa8&hm=7198963a3241fcf9c1de2877dfe25553d1c78ba9a37f1515ff93dfcc274c3857&" /> | <img width="600" height="100" alt="이재강" src="https://cdn.discordapp.com/attachments/1476399629703577612/1476399864672817222/SKN_27_.jpg?ex=69a0fc05&is=699faa85&hm=4a17a318c0f6d4d529730e31b12f2d2a2d6e75d57ba9c37f081bb92ba5a5e927&" /> | <img width="600" height="100" alt="한재웅" src="https://cdn.discordapp.com/attachments/1476398873655378003/1476399681709015093/20250323_140819.jpg?ex=69a0fbda&is=699faa5a&hm=ef61ecc87132873cee8e2a7ff2d46d6bf69f84e4500e3f02c8f3657d4d79c01d&" /> | <img width="600" height="100" alt="신동혁" src="https://cdn.discordapp.com/attachments/1471325357155024927/1476384102981701744/P20191005_215845765_2D922FFE-401B-4306-A71F-7E3294DA7F3F_Original.jpg?ex=69a0ed58&is=699f9bd8&hm=4355b3930a45224bfe4b5686e35c6238640f6d2e9e4bf46af7c63a114c5ce8bc&" /> |
+|---|---|---|---|---|---|
+|  <img width="70%" height="70%" alt="이재희" src="https://github.com/user-attachments/assets/dad13c12-cf7d-4766-ba3f-7d6fa9f0affa](https://github.com/account)" />  | <img width="70%" height="70%" alt="펭" src="https://github.com/user-attachments/assets/21fb66e5-1fb1-4b9c-8dda-cb8a2f994386" /> |  <img width="70%" height="70%" alt="카피" src="https://github.com/user-attachments/assets/ff0e5fb8-f887-451a-b921-d74c0233c424" />  |  <img width="70%" height="70%" alt="강아" src="https://github.com/user-attachments/assets/d754ed6b-2cf0-43cb-90fe-fc0a534344ab" />  |  <img width="70%" height="70%" alt="원숭" src="https://github.com/user-attachments/assets/c1342844-60f4-4489-9831-3db53cf93d9e" />  | <img width="70%" height="70%" alt="원숭" src="https://github.com/user-attachments/assets/c1342844-60f4-4489-9831-3db53cf93d9e" />  |
 | [이재희](https://github.com/EJ-pro) | [김민경](#) | [김경수](#) | [이재강](#) | [한재웅](#) | [신동혁](#) |
 
 # 2. 프로젝트 개요
@@ -80,5 +80,5 @@
 - **27기_이재강**: DB 전처리와 연동을 통해 데이터 활용 계획과 요구사항 정의가 시스템의 핵심임을 체감하였습니다. 개인적으로 차기 프로젝트에서는 정교한 데이터베이스 설계를 바탕으로 데이터의 선택 이유와 목적을 명확히 정의하고, 도출된 인사이트가 실질적으로 연결될 수 있도록 구현 역량을 높이도록 하겠습니다.
 - **27기_한재웅**: 이번 첫 프로젝트를 통해서 단순한 통계 데이터를 이용하여 유의미한 분석 결과를 도출하는데 대한 직접적인 협업 경험을 할 수 있어 좋았습니다. 다만 아직 첫 프로젝트이기에 자료 조사 및 ERD작성 등 서포트 역할만을 맡았다는 한계도 있었습니다. 따라서 앞으로는 이번 프로젝트 경험을 바탕으로 다양한 데이터를 수집하고 분석하는데 개인적으로 더 많은 역할을 할 수 있다면 좋을 것 같습니다.
 - **27기_신동혁**: 첫 프로젝트인 만큼 긴장감도 있었고, 제가 잘 할 수 있을지에 대해서 의문점을 가지고 있었습니다. 하지만 팀장님의 리더쉽과 역할배분이 완벽하여 저도 1인분을 할 수 있었던 것 같습니다. 이번엔 팀장님을 잘 만나 프로젝트를 성공적으로 끝냈지만 다음엔 저도 팀장님을 본 받아 팀장님같은 개발자로 성장하고 싶습니다.
-- **27기_이재희**: 초기에는 DB 연결 라우팅과 Docker 아키텍처에 대한 이해가 부족하여 환경 구축에 큰 위기를 겪었지만, 문제를 해결해 나가면서 컨테이너 기반 배포의 흐름을 깨닫는 값진 경험이었습니다.
-- **27기_김민경**: 이번 프로젝트를 진행하며 streamlit에 적응하기까지 고충을 겪었지만 팀원들의 요구사항을 실시간으로 반영하며 성취감을 얻을 수 있었습니다. streamlit의 특성을 파악하고 최선의 결과물을 도출해 낸 의미있는 시간이었습니다.
+- **27기_김민경**: 이번 프로젝트를 진행하며 streamlit에 적응하기까지 고충을 겪었지만 팀원들의 요구사항을 실시간으로 반영하며 성취감을 얻을 수 있었습니다. streamlit의 특성을 파악하고 최선의 결과물을 도출해 낸 의미있는 시간이었습니다
+- **27기_이재희**: 초기에는 DB 연결 라우팅과 Docker 아키텍처에 대한 이해가 부족하여 환경 구축에 어려움을 겪었지만, 문제를 해결해 나가면서 컨테이너 기반 배포의 흐름을 깨닫는 경험이었습니다.
