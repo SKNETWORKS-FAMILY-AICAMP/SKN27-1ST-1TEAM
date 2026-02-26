@@ -73,6 +73,7 @@
 
 # 8. 프로젝트 구조
 
+```text
 📦 SKN27-1ST-1TEAM
 ├── .gitignore
 ├── app.py
@@ -91,17 +92,6 @@
 ├── docker/
 │   ├── docker-compose.yml
 │   └── Dockerfile
-├── image/
-│   ├── erd.png
-│   ├── page1.png
-│   ├── page2.png
-│   ├── page3.png
-│   ├── page4.png
-│   ├── RS.png
-│   ├── screen_battle.png
-│   ├── screen_faq.png
-│   ├── screen_main.png
-│   └── screen_solution.png
 ├── md/
 │   ├── DATA_MIGRATION_GUIDE.md
 │   └── SETUP_GUIDE.md
@@ -115,6 +105,8 @@
 │   └── sync_infra.py
 └── utils/
     └── db_manager.py
+```
+<br>
 
 
 # 9. 화면 설계서 (Wireframe & UI Design)
