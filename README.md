@@ -130,19 +130,19 @@
 <br>
 <br>
 <div class="img-wrapper">
-  <img src="./image/page1.png" alt="preview"/>
+  <img src="./image/page_app.png" alt="preview"/>
 </div>
 <br>
 <div class="img-wrapper">
-  <img src="./image/page2.png" alt="preview"/>
+  <img src="./image/page_comose.png" alt="preview"/>
 </div>
 <br>
 <div class="img-wrapper">
-  <img src="./image/page3.png" alt="preview"/>
+  <img src="./image/page_faq.png" alt="preview"/>
 </div>
 <br>
 <div class="img-wrapper">
-  <img src="./image/page4.png" alt="preview"/>
+  <img src="./image/page_infra.png" alt="preview"/>
 </div>
 <br>
 
