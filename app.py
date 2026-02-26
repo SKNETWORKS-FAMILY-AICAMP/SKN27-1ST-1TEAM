@@ -218,10 +218,15 @@ def dashboard_page():
             st.plotly_chart(fig_trend, use_container_width=True)
 
 # --- 네비게이션 설정 ---
+from components.sidebar_widget import render_sidebar_widget
+
+with st.sidebar:
+    render_sidebar_widget()
+
 pg = st.navigation([
     st.Page(dashboard_page, title="전국 보급 현황", icon="🌱"),
     st.Page("pages/compare.py", title="차량 유지비 비교", icon="🔍"),
     st.Page("pages/faq.py", title="친환경차 통합 FAQ", icon="📝"),
-    st.Page("pages/infrastructure.py", title="충전소 인프라 현황", icon="⚡")
+    st.Page("pages/infrastructure.py", title="충전소 인프라 현황", icon="⚡"),
 ])
 pg.run()
