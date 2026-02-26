@@ -53,29 +53,84 @@
 - 데이터 타입 정제 (수치형 변환, 날짜 데이터 처리)
 - 결측치 처리 및 지역별 통계 요약 피벗 테이블 생성
 
-# 6. 수행 결과 (Streamlit 대시보드)
+<br>
+
+# 6. 요구사항 정의서 (Requirement Specification)
+<br>
+<br>
+<div class="img-wrapper">
+  <img src="./image/screen_solution.png" alt="preview"/>
+</div>
+<br>
+
+# 7. ERD (Entity Relationship Diagram)
+<br>
+<br>
+<div class="img-wrapper">
+  <img src="./image/erd.png" alt="preview"/>
+</div>
+<br>
+
+# 8. 화면 설계서 (Wireframe & UI Design)
+
+<br>
+<br>
+<div class="img-wrapper">
+  <img src="./image/screen_main.png" alt="preview"/>
+</div>
+<br>
+<div class="img-wrapper">
+  <img src="./image/screen_battle.png" alt="preview"/>
+</div>
+<br>
+<div class="img-wrapper">
+  <img src="./image/screen_faq.png" alt="preview"/>
+</div>
+<br>
+
+# 9. 주요 구현 내용 (Technical Implementation)
+<br>
+<br>
+<div class="img-wrapper">
+  <img src="./image/page1.png" alt="preview"/>
+</div>
+<br>
+<div class="img-wrapper">
+  <img src="./image/page2.png" alt="preview"/>
+</div>
+<br>
+<div class="img-wrapper">
+  <img src="./image/page3.png" alt="preview"/>
+</div>
+<br>
+<div class="img-wrapper">
+  <img src="./image/page4.png" alt="preview"/>
+</div>
+<br>
+
+# 10. 수행 결과 (Streamlit 대시보드)
 ## 주요 기능
 ✔️ **전국 보급 현황:** 지도 위 마우스 오버를 통해 지역별 전기차 비중 및 성장률 확인 <br>
 ✔️ **차량 유지비 비교:** 내연기관차 vs 전기차 10년 유지비 시뮬레이션 및 손익분기점 도출 <br>
 ✔️ **충전소 인프라:** 지역별 충전소 밀도를 히트맵으로 확인하고 상세 위치 검색 <br>
 ✔️ **통합 FAQ:** 검색창을 통한 신속한 정보 확인 <br>
 
-# 7. 개발 중 주요 이슈 및 해결
-### 7-1. Docker 환경 구축 및 연결 이슈
+# 11. 개발 중 주요 이슈 및 해결
+### 11-1. Docker 환경 구축 및 연결 이슈
 - **문제**: Docker 컨테이너 기반으로 MySQL을 구성하는 과정에서 컨테이너 간의 네트워크 연결 및 호스트와의 포트 포워딩 설정에 어려움 발생. 특히 설정을 바꿀 때마다 `docker-compose down`과 `up`을 반복하며 환경을 최적화하는 과정에서 많은 시간이 소요됨.
 - **해결**: Docker Compose 설정을 단계적으로 수정하며 컨테이너 라이프사이클을 관리하는 법을 익혔고, 최종적으로 안정적인 DB 연결 환경을 구축함.
 
-### 7-2. 협업 시 데이터 동기화 문제
+### 11-2. 협업 시 데이터 동기화 문제
 - **문제**: 다른 팀원들이 배포된 저장소를 `clone`하여 작업할 때, DB 스키마는 생성되나 데이터 테이블이 비어 있어 앱이 정상 작동하지 않는 이슈 발생. 이를 파이썬 코드를 통한 자동 마이그레이션으로 해결하려 했으나 초기 설정의 복잡함으로 인해 구현에 난항을 겪음.
 - **해결**: 데이터 무결성과 즉각적인 팀원 간 공유를 위해 모든 데이터를 CSV 파일로 관리하고, DB 초기화 시 CSV를 자동으로 로드하는 방식을 채택하여 해결함.
 - **향후 계획**: 현재의 CSV 로드 방식을 넘어, 향후에는 완전히 코드 기반의 데이터 마이그레이션 및 자동 삽입 로직을 고도화할 예정임.
 
-# 8. 한계점 및 향후 과제
+# 12. 한계점 및 향후 과제
 - 실시간 데이터 연동: 현재는 CSV/DB 기반 정적 데이터로, 향후 API 실시간 연동 필요
 - 차량 모델 다양화: 시뮬레이터에 등록된 기본 차량 외 최신 출시 모델 지속 업데이트 필요
 - 사용자 맞춤형 추천: 주행 패턴 분석을 통한 최적 차종 추천 알고리즘 고도화
 
-# 9. 한 줄 회고
+# 13. 한 줄 회고
 - **27기_김경수**: 개발 과정 중 필요한 작업들을 알 수 있어서 좋았습니다. 다만, 첫 프로젝트라 작업에 필요한 이슈, 기획서 들이 없어서 겪는 문제들이 아프게 다가왔고 다음 프로젝트에는 화면설계, 요구사항 정의서, ERD 설계 등을 충실하게 진행해서 진행 과정 중 발생하는 문제들을 줄일 수 있으면 좋을 것 같습니다.
 - **27기_이재강**: DB 전처리와 연동을 통해 데이터 활용 계획과 요구사항 정의가 시스템의 핵심임을 체감하였습니다. 개인적으로 차기 프로젝트에서는 정교한 데이터베이스 설계를 바탕으로 데이터의 선택 이유와 목적을 명확히 정의하고, 도출된 인사이트가 실질적으로 연결될 수 있도록 구현 역량을 높이도록 하겠습니다.
 - **27기_한재웅**: 이번 첫 프로젝트를 통해서 단순한 통계 데이터를 이용하여 유의미한 분석 결과를 도출하는데 대한 직접적인 협업 경험을 할 수 있어 좋았습니다. 다만 아직 첫 프로젝트이기에 자료 조사 및 ERD작성 등 서포트 역할만을 맡았다는 한계도 있었습니다. 따라서 앞으로는 이번 프로젝트 경험을 바탕으로 다양한 데이터를 수집하고 분석하는데 개인적으로 더 많은 역할을 할 수 있다면 좋을 것 같습니다.
